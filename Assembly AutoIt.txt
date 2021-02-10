@@ -1,0 +1,65 @@
+#include <ASM.au3>
+
+; Initial an asm object
+Global $Asm = AsmInit()
+
+Demo1()
+
+Func Demo1()
+; Demo 1: Using Parameters
+    AsmReset($Asm)
+    AsmAdd($Asm, "push ebp")
+    AsmAdd($Asm, "mov ebp, esp")
+    AsmAdd($Asm, "mov eax, [ebp + 08]")
+    AsmAdd($Asm, "add eax, [ebp + 0c]")
+    AsmAdd($Asm, "pop ebp")
+    AsmAdd($Asm, "retn 8")
+    ConsoleWrite(String(AsmGetBinary($Asm)) & @CRLF)
+    $Ret = MemoryFuncCall("int", AsmGetPtr($Asm), "int", 1, "int", 2)
+    MsgBox(0, "Demo 1: Using Parameters", "1 + 2 = " & $Ret[0])
+EndFunc
+
+; Release the asm object
+AsmExit($Asm)
+Exit
+
+
+
+
+
+
+
+
+Func Demo1()
+; Demo 1: Using Parameters
+    $timer = TimerInit()
+    AsmReset($Asm)
+    AsmAdd($Asm, "push ebp")
+    AsmAdd($Asm, "mov ebp, esp")
+    AsmAdd($Asm, "mov eax, [ebp + 08]")
+    AsmAdd($Asm, "add eax, [ebp + 0c]")
+    AsmAdd($Asm, "pop ebp")
+    AsmAdd($Asm, "retn 8")
+    ConsoleWrite(String(AsmGetBinary($Asm)) & @CRLF)
+    $Ret = MemoryFuncCall("int", AsmGetPtr($Asm), "int", 1, "int", 2)
+    ConsoleWrite (TimerDiff ($timer) & "ms" & @CRLF)
+    $timer = ""
+    MsgBox(0, "Demo 1: Using Parameters", "1 + 2 = " & $Ret[0])
+EndFunc
+
+
+
+
+
+
+
+
+Func Demotwo()
+    $timer = TimerInit()
+    $t = 1 + 2
+    ConsoleWrite (TimerDiff ($timer) & "ms" & @CRLF)
+    $timer = ""
+    MsgBox (32, "test", $t)
+EndFunc
+
+
