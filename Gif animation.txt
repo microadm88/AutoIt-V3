@@ -1,0 +1,141 @@
+GIF Animation
+By trancexx, June 3, 2009 in AutoIt Example Scripts
+
+    
+1 2 3 4 5 6 NEXT  Page 1 of 9  
+trancexx
+something something something
+trancexx
+Active Members
+ 1,013
+6,848 posts
+Posted June 3, 2009 (edited)
+No it doesn't speak, I lied. That is impossible.
+
+It's about setting animated GIF (and every other type of images) to a GUI control.
+
+How is this done for animated GIF? Few simple steps:
+
+- created ImageList of GIF Bitmaps retrieved from gif file/resource
+
+- created Pic control
+
+- every now and then another image is displayed. This is determined by frame delay time - see gif specification somewhere.
+
+That's it.
+
+All that takes time and could potentially block our gui/script. That's why flying assembly is used. Animation is done in another thread different from one AutoIt's code is executed in. Nothing stops animation but you.
+
+Animation works both for x64 and x86. Also it works for all kind of images not only GIFs. That means you can use it to display PNGs, BMPs, JPGs, etc... All of them from resources too.
+
+Example:
+
+expand popup
+#include <GUIConstantsEx.au3>
+#include <WindowsConstants.au3>
+#include "GIFAnimation.au3"
+
+Opt("MustDeclareVars", 1)
+
+; Start by choosing GIF to display
+Global $sFile = FileOpenDialog("Choose Image", "", "(*.gif;*.png;*.jpg;*.tiff;*.bmp;*.jpeg)", -1, "")
+If @error Then Exit
+
+; Make GUI
+Global $hGui = GUICreate("GIF Animation", 500, 500, -1, -1, $WS_OVERLAPPEDWINDOW)
+
+; Add some buttons
+Global $hButton = GUICtrlCreateButton("&Pause animation", 50, 450, 100, 25)
+Global $hButton1 = GUICtrlCreateButton("&Delete Control", 200, 450, 100, 25)
+Global $hButton2 = GUICtrlCreateButton("&Open Image", 350, 450, 100, 25)
+
+; Make GIF Control
+Global $hGIF = _GUICtrlCreateGIF($sFile, "", 10, 10)
+If @extended Then GUICtrlSetState($hButton, $GUI_DISABLE)
+GUICtrlSetTip($hGIF, "Image")
+
+; Additional processing of some windows messages (for example)
+GUIRegisterMsg(133, "_Refresh") ; WM_NCPAINT
+GUIRegisterMsg(15, "_ValidateGIFs") ; WM_PAINT
+
+Global $iPlay = 1
+
+; Show it
+GUISetState()
+
+; Loop till end
+While 1
+    Switch GUIGetMsg()
+        Case -3
+            Exit
+        Case $hButton
+            If $iPlay Then
+                If _GIF_PauseAnimation($hGIF) Then
+                    $iPlay = 0
+                    GUICtrlSetData($hButton, "Resume animation")
+                EndIf
+            Else
+                If _GIF_ResumeAnimation($hGIF) Then
+                    $iPlay = 1
+                    GUICtrlSetData($hButton, "Pause animation")
+                EndIf
+            EndIf
+        Case $hButton1
+            _GIF_DeleteGIF($hGIF)
+        Case $hButton2
+            $sFile = FileOpenDialog("Choose gif", "", "(*.gif;*.png;*.jpg;*.tiff;*.bmp;*.jpeg)", -1, "", $hGui)
+            If Not @error Then
+                _GIF_DeleteGIF($hGIF); delete previous
+                $hGIF = _GUICtrlCreateGIF($sFile, "", 10, 10)
+                If @extended Then
+                    GUICtrlSetState($hButton, $GUI_DISABLE)
+                Else
+                    GUICtrlSetState($hButton, $GUI_ENABLE)
+                EndIf
+                GUICtrlSetTip($hGIF, "Image")
+                $iPlay = 1
+                GUICtrlSetData($hButton, "Pause animation")
+            EndIf
+    EndSwitch
+WEnd
+
+
+Func _Refresh($hWnd, $iMsg, $wParam, $lParam)
+    #forceref $hWnd, $iMsg, $wParam, $lParam
+    _GIF_RefreshGIF($hGIF)
+EndFunc ;==>_Refresh
+
+Func _ValidateGIFs($hWnd, $iMsg, $wParam, $lParam)
+    #forceref $hWnd, $iMsg, $wParam, $lParam
+    _GIF_ValidateGIF($hGIF)
+EndFunc ;==>_ValidateGIFs
+It should be 0% cpu.
+
+Download from here if you want to impress chicks: http://code.google.com/p/gif-animation/downloads/list
+
+There are 8 examples in there. GIF files are downloaded automatically if some example script needs it. Mostly from photobucket.com. Some examples work without classic download. Required data is get with InetRead(). That's mighty cool.
+
+So, download, open ZIP, grab folder inside and place it where you want. Run examples and that's it.
+
+Word or two about main function, _GUICtrlCreateGIF(). It can handle all sorts of input. Will display Images that are passed as binary, resource identifiers, strings, file names, ... everything. If it's valid image all works. For example, all this is valid:
+
+; Pass GIF File path/name
+_GUICtrlCreateGIF("Some.gif", "", 10, 10)
+
+; Binary data
+_GUICtrlCreateGIF($bGIF, "", 10, 10,)
+
+; PE Resource (file GIF.dll, Type: GIF, Name: 4)
+_GUICtrlCreateGIF("GIF.dll", "GIF;4", 10, 10, 100, 120)
+
+; PE Resource (file @AutoItExe, Type: RES, Name: BLAH, Language: 1033)
+_GUICtrlCreateGIF(@AutoItExe, "RES;BLAH;1033", 10, 10)
+
+; PE Resource (file "explorer.exe", Type: 2, Name: 6801)
+_GUICtrlCreateGIF("explorer.exe", "2;6801", 10, 10) ;<- BITMAP
+
+; PE Resource (file @AutoItExe, Type: RC_DATA, Name: PNG)
+_GUICtrlCreateGIF(@AutoItExe, "10;PNG", 10, 10)
+
+; GIF string
+_GUICtrlCreateGIF(FileRead("Some.gif"), "", 10, 10)
