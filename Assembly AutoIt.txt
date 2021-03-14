@@ -63,3 +63,193 @@ Func Demotwo()
 EndFunc
 
 
+
+
+
+
+
+
+
+#include "ASM.au3"
+$Code = ASMInstruction("MOV","eax",10) & _      ; Move '10' to EAX
+ ASMInstruction("ADD","eax",1) & _      ; Add '1' to EAX
+ ASMInstruction("INC","eax") & _            ; Increase EAX (same as ADD(EAX,1) but faster)
+ASMInstruction("XOR","ebx","ebx") & _   ; Shortcut for making EBX zero(0)
+ ASMInstruction("MOV","bl",2) & _       ; Move '2' to BL
+ ASMInstruction("ADD","eax","ebx") & _  ; Add EBX to EAX
+ ASMInstruction("RET")                  ; Return EAX
+
+$hCode = ASMCompile($Code)
+
+$iRetVal = ASMExecute($hCode)
+
+MsgBox(0,"sd",$iRetVal,0)
+
+
+
+
+
+
+
+
+
+
+#include <ASM.au3>
+
+; Initial an asm object
+Global $Asm = AsmInit()
+
+Demo1()
+
+Func Demo1()
+; Demo 1: Using Parameters
+    AsmReset($Asm)
+    AsmAdd($Asm, "push ebp")
+    AsmAdd($Asm, "mov ebp, esp")
+    AsmAdd($Asm, "mov eax, [ebp + 08]")
+    AsmAdd($Asm, "add eax, [ebp + 0c]")
+    AsmAdd($Asm, "pop ebp")
+    AsmAdd($Asm, "retn 8")
+    ConsoleWrite(String(AsmGetBinary($Asm)) & @CRLF)
+    $Ret = MemoryFuncCall("int", AsmGetPtr($Asm), "int", 1, "int", 2)
+    MsgBox(0, "Demo 1: Using Parameters", "1 + 2 = " & $Ret[0])
+EndFunc
+
+; Release the asm object
+AsmExit($Asm)
+Exit
+
+
+
+
+
+
+
+
+
+
+
+
+;Example for _AssembleIt()
+;32 Bit only!
+#include <AssembleIt.au3>
+
+Func _Add_int()                         ;any functionname, used by _AssembleIt()
+    _("use32")                          ;32 Bit
+    _("mov eax,dword[esp+4]")           ;read 1st parameter in Register EAX=22
+    _("add eax,dword[esp+8]")           ;add 2nd parameter EAX=EAX+33
+    _("ret")                            ;Returns result in EAX back to the calling function  ;NO STACK CLEANING NECESSARY!
+EndFunc                                 ;==>_Add_int
+
+;_AssembleIt($Returntype, $Name_of_Func_with_code, $Type1 = "type", $Param1 = 0, $Type2 = "type", $Param2 = 0....up to 20 params)
+$ret = _AssembleIt("int", "_Add_int", "int", 22, "int", 33)  ;thats all^^
+MsgBox(0, 'Result _Add_int()', $ret)  ;no array returned by _AssembleIt()
+
+
+
+
+
+
+
+
+#include <AssembleIt.au3>
+#include <GDIPlus.au3>
+;32Bit only!
+
+Func _grayscale()
+    _("use32")                              ;32Bit!
+
+    _("mov esi,dword[esp+4]")                  ;Startadress Bitmapdata (Pixel)
+    _("mov ecx,dword[esp+8]")                  ;number of Pixel
+    _("mov edi,21845")                      ;konstant, *21845/2^16 is approximately 1/3 (replaces the slow DIV 3)
+
+    _("_loop1:")                            ;until ecx=0
+    _("mov edx,[esi]")                      ;load pixel  AARRGGBB  (RR+GG+BB)/3 = colour grayscale
+    _("mov al,dl")                          ;lowbyte (BB) Pixel to lowbyte al
+    _("movzx bx,dh")                        ;highbyte (GG) Pixel to lowbyte of bx (bh is 0)
+    _("shr edx,8")                          ;shift RR into dh
+    _("add ax,bx")                          ;BB + GG
+    _("movzx bx,dh")                        ;highbyte (RR) Pixel to lowbyte of bx (bh ist 0)
+    _("add ax,bx")                          ;and add: dx=RR+GG+BB
+    _("mul edi")                            ;ax=ax*21845      *21845/2^16 is about 1/3
+    _("shr eax,16")                            ;ax=ax/2^16   in al is now the greyscale colour for RR, GG und BB
+    _("movzx dx,al")                        ;grayscale to dl,  dh = 0
+    _("shl edx,16")                            ;grayscale to RR,  AA = 0!
+    _("mov dh,al")                          ;grayscale to GG
+    _("mov dl,al")                          ;grayscale to BB    edx is now 00alalal = grayscale AARRGGBB
+    _("mov [esi],edx")                      ;write pixel
+
+    _("add esi,4")                          ;address next pixel: 4 Byte = 1 dword = 1 Pixel
+    _("sub ecx,1")                          ;counter (next pixel)
+    _("ja _loop1")                          ;until ecx=0
+    ;upper 3 lines are faster than _("loop _loop1")            ;until ecx=0
+    _("ret ")                                  ;return
+EndFunc                                        ;==>_grayscale
+
+
+$file = FileOpenDialog("Select 24 or 32 Bpp image!", @ScriptDir, "Image (*.jpg;*.bmp)", 1 + 2)
+if @error then exit
+
+_GDIPlus_Startup()
+$hBitmap = _GDIPlus_BitmapCreateFromFile($file)
+$iWidth = _GDIPlus_ImageGetWidth($hBitmap)
+$iHeight = _GDIPlus_ImageGetHeight($hBitmap)
+$hBitmapData = _GDIPlus_BitmapLockBits($hBitmap, 0, 0, $iWidth, $iHeight, BitOR($GDIP_ILMREAD, $GDIP_ILMWRITE), $GDIP_PXF32RGB)
+$Scan = DllStructGetData($hBitmapData, "Scan0")
+$Stride = DllStructGetData($hBitmapData, "Stride")
+$tPixelData = DllStructCreate("dword[" & (Abs($Stride * $iHeight)) & "]", $Scan)
+
+
+;$_ASSEMBLEIT_FLAG = 0   ;after uncomment this line, run the script, and replace the following line with the content of the clipboard, then delete #include <AssembleIt.au3> and the _grayscale()-function
+$ret=_AssembleIt("ptr","_grayscale","ptr", DllStructGetPtr($tPixelData), "int", $iWidth * $iHeight)  ;ptr als Rückgabe, um die hexzahlen schön zu sehen
+
+_GDIPlus_BitmapUnlockBits($hBitmap, $hBitmapData)
+_GDIPlus_ImageSaveToFile($hBitmap, @ScriptDir & "\greyscale.jpg")
+_GDIPlus_Shutdown()
+
+ShellExecute(@ScriptDir & "\greyscale.jpg")
+
+
+
+
+
+
+
+
+
+#include <GDIPlus.au3>
+;32Bit only!
+
+$file = FileOpenDialog("Select 24 or 32 Bpp image!", @ScriptDir, "Image (*.jpg;*.bmp)", 1 + 2)
+if @error then exit
+
+_GDIPlus_Startup()
+$hBitmap = _GDIPlus_BitmapCreateFromFile($file)
+$iWidth = _GDIPlus_ImageGetWidth($hBitmap)
+$iHeight = _GDIPlus_ImageGetHeight($hBitmap)
+$hBitmapData = _GDIPlus_BitmapLockBits($hBitmap, 0, 0, $iWidth, $iHeight, BitOR($GDIP_ILMREAD, $GDIP_ILMWRITE), $GDIP_PXF32RGB)
+$Scan = DllStructGetData($hBitmapData, "Scan0")
+$Stride = DllStructGetData($hBitmapData, "Stride")
+$tPixelData = DllStructCreate("dword[" & (Abs($Stride * $iHeight)) & "]", $Scan)
+
+
+Global $tCodeBuffer = DllStructCreate("byte[61]") ;reserve Memory for opcodes
+DllStructSetData($tCodeBuffer, 1,"0x8B7424048B4C2408BF555500008B1688D0660FB6DEC1EA086601D8660FB6DE6601D8F7E7C1E810660FB6D0C1E21088C688C2891683C60483E90177D1C3") ;write opcodes into memory
+$ret=DllCall("user32.dll", "ptr", "CallWindowProcW", "ptr", DllStructGetPtr($tCodeBuffer),"int",DllStructGetPtr($tPixelData), "int", $iWidth * $iHeight,"int",0,"int",0)
+
+_GDIPlus_BitmapUnlockBits($hBitmap, $hBitmapData)
+_GDIPlus_ImageSaveToFile($hBitmap, @ScriptDir & "\greyscale.jpg")
+_GDIPlus_Shutdown()
+
+ShellExecute(@ScriptDir & "\greyscale.jpg")
+
+
+
+
+
+
+
+
+
+
+
